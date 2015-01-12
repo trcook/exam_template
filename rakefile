@@ -1,65 +1,51 @@
 require "rake/clean"
-task :default => [:build, "clobber"]
-task :rmd => ["knit:rmd", :build, "clobber"]
-task :clobber do
-  puts CLEAN
-end
 
+task :default =>["installrmd","installmd","clobber"]
 
-
-$clean_str1 = Regexp.new("(.*\.(snm|out\.ps|nav|vrb|run\.xml|bcf|tmp|blg|toc|log|aux|bbl|fls|fdb_latexmk|synctex.gz))")
-$clean_str2=Regexp.new("(.*(blx.bib))")
-
-
-
-task :build do
-
-
-
-  begin
-    system(%{latexmk -pdf -f skeleton})
-
-  rescue
-    error_string= "proceeding despite errors"
-    puts error_string
-  else
-
-
-  end
-  # noinspection RubyResolve
-  CLEAN.include(FileList[Dir.glob("*").find_all { |t| $clean_str1=~t }])
-  # noinspection RubyResolve
-  CLEAN.include(FileList[Dir.glob("*").find_all { |t| $clean_str2 =~t }])
-puts $clean_str1
-  #Rake::Task["clean"].execute
-  #Rake::Task["clobber"].execute
-end
-
-# noinspection RubyResolve
-CLEAN.include(FileList[Dir.glob("*").find_all { |t| $clean_str1=~t }])
-# noinspection RubyResolve
-CLEAN.include(FileList[Dir.glob("*").find_all { |t| $clean_str2=~t }])
-
-
-namespace :knit do
-# define the script to run rmd files keep this on one line:
-  KNITR_SCRIPT =<<EOS
+SCRIPT_TO_RUN =<<EOS
 Rscript -e 'require(knitr);options("revealout"="n");render_markdown();knit("@input_file", output="@output_file")'
 EOS
 
-  # select the files to be run through knitr
-  # noinspection RubyResolve
-  my_rmd_files=FileList[Dir.glob("./*.rmd", File::FNM_CASEFOLD)]
-  my_latex_files=my_rmd_files.ext("tex")
+my_rmd_files=FileList[Dir.glob("./*.rmd", File::FNM_CASEFOLD)]
+my_md_files=FileList[Dir.glob("./*.md", File::FNM_CASEFOLD)]
+#: this needs to exclude pandoc extensions. this is crucial.
 
-  desc %{knits the requisite rmd files for processing into a pdf}
-  task :rmd => my_latex_files
-  rule ".tex" => ".rmd" do
-    system %{
-           #{KNITR_SCRIPT.sub("@input_file", t.source).sub("@output_file", t.name)}
-           }
+# out_file=my_rmd_files.pathmap("%n.pdf")
+# out_file.add(my_md_files.pathmap("%n.pdf"))
+task :installrmd
+task :installmd
+
+task :installrmd=>my_rmd_files.ext("pdf")
+
+task :installmd=>my_md_files.ext("pdf")
+
+namespace :installrmd do
+  rule ".pdf" =>".rmd" do |t|
+    puts "#{t.source}#{t.name}"
+    proc_and_move(t,1)
+    CLEAN.include(t.source.ext("md"))
+    puts "clean is #{CLEAN}"
   end
-
-
 end
-# TODO : enter hooks for knitr to jb and static site generation
+
+
+namespace :installmd do
+  file my_md_files.ext("pdf") => my_md_files
+  rule ".pdf" =>".md" do |t|
+    puts "#{t.source}#{t.name}"
+    proc_and_move(t)
+  end
+end
+
+define_method(:proc_and_move) do |t,*args|
+  unless args.empty?
+  system %{
+  #{SCRIPT_TO_RUN.sub("@input_file",t.source).sub("@output_file",t.name.ext(".md"))}
+  }
+  end  
+  sh %Q{pandoc -f markdown -t latex --template="mymemobiblatex.latex" "#{t.source.ext("md")}" -o "#{t.name}" }
+  return  
+end
+
+### end new
+

@@ -1,15 +1,20 @@
 \documentclass[$if(fontsize)$$fontsize$,$endif$$if(lang)$$lang$,$endif$$if(papersize)$$papersize$,$endif$]{$documentclass$}
-\usepackage{mymemo}
+\usepackage{mymemobiblatex}
 
 $for(header-includes)$
 $header-includes$
 $endfor$
-
-
+$if(title)$ \renewcommand{\mytitle}{$title$} $endif$
+$if(coursename)$\renewcommand{\myauthor}{$coursename$}$endif$
 \begin{document}
-$if(title)$
-\maketitle
-$endif$
+
+\begin{center}
+{\Huge $if(title)$ $title$ $endif$}
+
+$if(coursename)$ $coursename$ $endif$
+
+\end{center}
+\thispagestyle{plain}
 
 $for(include-before)$
 $include-before$
